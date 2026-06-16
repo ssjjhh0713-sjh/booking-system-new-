@@ -645,16 +645,15 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getFirestore, collection, addDoc, getDocs, deleteDoc, doc, query, where, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
-        // ⚠️ Firebase 설정 - 여기에 본인의 Firebase Config 정보를 입력하세요!
-        const firebaseConfig = {
-            apiKey: "YOUR_API_KEY_HERE",
-            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-            projectId: "YOUR_PROJECT_ID",
-            storageBucket: "YOUR_PROJECT_ID.appspot.com",
-            messagingSenderId: "YOUR_SENDER_ID",
-            appId: "YOUR_APP_ID"
-        };
-
+const firebaseConfig = {
+    apiKey: "AIzaSyBysRSYpMALCpf85-mAGZRya-hXFWzF19A",
+    authDomain: "booking-d079b.firebaseapp.com",
+    projectId: "booking-d079b",
+    storageBucket: "booking-d079b.firebasestorage.app",
+    messagingSenderId: "285721499780",
+    appId: "1:285721499780:web:94ca8e472b35dfb3f00ad1",
+    measurementId: "G-817KD1JYRZ"
+};
         // Firebase 초기화
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
