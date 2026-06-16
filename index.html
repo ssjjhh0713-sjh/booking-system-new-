@@ -719,12 +719,24 @@
             });
         }
 
-        async function submitBooking() {
-            const professor = document.getElementById('professor').value;
-            const studentId = document.getElementById('studentId').value;
-            const studentName = document.getElementById('studentName').value;
-            const major = document.getElementById('major').value;
-            const phone = document.getElementById('phone').value;
+async function submitBooking() {
+const bookingsCol = window.collection(window.db, 'bookings');
+try {
+await window.addDoc(bookingsCol, {
+professor: document.getElementById('professor').value,
+studentId: document.getElementById('studentId').value,
+studentName: document.getElementById('studentName').value,
+major: document.getElementById('major').value,
+phone: document.getElementById('phone').value,
+date: selectedSlot?.date,
+time: selectedSlot?.time,
+createdAt: new Date().toISOString()
+});
+// 성공 처리
+} catch (error) {
+// 에러 처리
+}
+}
 
             if (!professor || !studentId || !studentName || !major || !phone) {
                 showAlert('error', '모든 정보를 입력해주세요.');
