@@ -737,7 +737,8 @@
             }
 
             try {
-                await addDoc(collection(db, 'bookings'), {
+                const bookingsCol = window.collection(window.db, 'bookings');
+await window.addDoc(bookingsCol, {
                     professor,
                     studentId,
                     studentName,
