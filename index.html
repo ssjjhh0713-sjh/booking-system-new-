@@ -127,6 +127,53 @@ body {
     border-color: #667eea;
 }
 
+.consult-type-row {
+    grid-column: 1 / -1;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 30px;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    align-items: center;
+    width: max-content;
+    margin-top: 8px;
+    margin-bottom: 3px;
+}
+
+.checkbox-group label,
+.consult-item {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    font-weight: 400;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"],
+.consult-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    cursor: pointer;
+}
+
+.consult-notice {
+    margin-top: -30px;
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 13px;
+    line-height: 1.5;
+    padding-left: 5px;
+}
+
 .calendar-container {
     margin-top: 20px;
     overflow-x: auto;
@@ -429,6 +476,11 @@ body {
         flex-direction: column;
         gap: 10px;
     }
+
+    .checkbox-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
 }
 </style>
 </head>
@@ -463,6 +515,7 @@ body {
 
             <div class="form-section">
                 <h3>1️⃣ 예약자 정보 입력</h3>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>담당교수 선택 *</label>
@@ -494,7 +547,32 @@ body {
                         <label>연락처 *</label>
                         <input type="tel" id="phone" placeholder="010-1234-5678">
                     </div>
+
+                    <div class="form-group consult-type-row">
+                        <label style="display:block; margin-bottom:8px;">상담 유형 *</label>
+
+                        <div class="checkbox-group">
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="지원 전 희망 기업 및 직무 관련">
+                                <span>[지원 전] 희망 기업 및 직무 관련</span>
+                            </label>
+
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="실습 중 현장실습 관련 고충 상담">
+                                <span>[실습 중] 현장실습 관련 고충 상담</span>
+                            </label>
+
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="서류 이력서 및 자기소개서 작성 관련 상담">
+                                <span>[서류] 이력서 및 자기소개서 작성 관련 상담</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="consult-notice">
+                ※ 이력서 및 자기소개서 작성 관련 상담은 전문 컨설턴트 일정에 따라 진행되며, 상담이 가능한 경우 개별적으로 일정을 안내해 드립니다.
             </div>
 
             <div class="form-section">
@@ -737,9 +815,11 @@ async function submitBooking() {
     const studentName = document.getElementById("studentName").value.trim();
     const major = document.getElementById("major").value.trim();
     const phone = document.getElementById("phone").value.trim();
+    const consultTypes = Array.from(document.querySelectorAll('input[name="consultType"]:checked'))
+        .map(checkbox => checkbox.value);
 
-    if (!professor || !studentId || !studentName || !major || !phone) {
-        showAlert("error", "모든 정보를 입력해주세요.");
+    if (!professor || !studentId || !studentName || !major || !phone || consultTypes.length === 0) {
+        showAlert("error", "모든 정보와 상담 유형을 선택해주세요.");
         return;
     }
 
@@ -767,6 +847,7 @@ async function submitBooking() {
             studentName,
             major,
             phone,
+            consultTypes,
             date: selectedSlot.date,
             time: selectedSlot.time,
             createdAt: new Date().toISOString()
@@ -781,6 +862,10 @@ async function submitBooking() {
         document.getElementById("studentName").value = "";
         document.getElementById("major").value = "";
         document.getElementById("phone").value = "";
+
+        document.querySelectorAll('input[name="consultType"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
 
         selectedSlot = null;
         document.getElementById("submitBtn").disabled = true;
@@ -813,7 +898,8 @@ function searchMyBookings() {
             <div class="booking-item">
                 <div class="booking-details">
                     <strong>${b.professor} 교수님</strong>
-                    <span>${b.date} ${b.time} | ${b.studentName} | ${b.major}</span>
+                    <span>${b.date} ${b.time} | ${b.studentName} | ${b.major}</span><br>
+                    <span>상담 유형: ${Array.isArray(b.consultTypes) ? b.consultTypes.join(", ") : "미입력"}</span>
                 </div>
                 <button class="cancel-btn" onclick="cancelBooking('${b.id}')">취소</button>
             </div>
@@ -928,7 +1014,8 @@ function loadAdminBookings() {
             <div class="booking-item">
                 <div class="booking-details">
                     <strong>${b.time}</strong>
-                    <span>${b.studentName} (${b.studentId}) | ${b.major} | ${b.phone}</span>
+                    <span>${b.studentName} (${b.studentId}) | ${b.major} | ${b.phone}</span><br>
+                    <span>상담 유형: ${Array.isArray(b.consultTypes) ? b.consultTypes.join(", ") : "미입력"}</span>
                 </div>
             </div>
         `).join("");
