@@ -127,6 +127,53 @@ body {
     border-color: #667eea;
 }
 
+.consult-type-row {
+    grid-column: 1 / -1;
+}
+
+.checkbox-group {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    gap: 30px;
+    padding: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: white;
+    font-size: 14px;
+    align-items: center;
+    width: max-content;
+    margin-top: 8px;
+    margin-bottom: 3px;
+}
+
+.checkbox-group label,
+.consult-item {
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+    font-weight: 400;
+    margin-bottom: 0;
+    cursor: pointer;
+}
+
+.checkbox-group input[type="checkbox"],
+.consult-item input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin-right: 6px;
+    cursor: pointer;
+}
+
+.consult-notice {
+    margin-top: -30px;
+    margin-bottom: 15px;
+    color: #666;
+    font-size: 13px;
+    line-height: 1.5;
+    padding-left: 5px;
+}
+
 .calendar-container {
     margin-top: 20px;
     overflow-x: auto;
@@ -429,6 +476,11 @@ body {
         flex-direction: column;
         gap: 10px;
     }
+
+    .checkbox-group {
+        flex-wrap: wrap;
+        width: 100%;
+    }
 }
 </style>
 </head>
@@ -463,6 +515,7 @@ body {
 
             <div class="form-section">
                 <h3>1️⃣ 예약자 정보 입력</h3>
+
                 <div class="form-row">
                     <div class="form-group">
                         <label>담당교수 선택 *</label>
@@ -494,7 +547,32 @@ body {
                         <label>연락처 *</label>
                         <input type="tel" id="phone" placeholder="010-1234-5678">
                     </div>
+
+                    <div class="form-group consult-type-row">
+                        <label style="display:block; margin-bottom:2px;">상담 유형 *</label>
+
+                        <div class="checkbox-group">
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="지원 전 희망 기업 및 직무 관련">
+                                <span>[지원 전] 희망 기업 및 직무 관련</span>
+                            </label>
+
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="실습 중 현장실습 관련 고충 상담">
+                                <span>[실습 중] 현장실습 관련 고충 상담</span>
+                            </label>
+
+                            <label class="consult-item">
+                                <input type="checkbox" name="consultType" value="서류 이력서 및 자기소개서 작성 관련 상담">
+                                <span>[서류] 이력서 및 자기소개서 작성 관련 상담</span>
+                            </label>
+                        </div>
+                    </div>
                 </div>
+            </div>
+
+            <div class="consult-notice">
+                ※ 이력서 및 자기소개서 작성 관련 상담은 전문 컨설턴트 일정에 따라 진행되며, 상담이 가능한 경우 개별적으로 일정을 안내해 드립니다.
             </div>
 
             <div class="form-section">
@@ -526,7 +604,7 @@ body {
                     <label>학번 입력</label>
                     <input type="text" id="searchStudentId" placeholder="학번을 입력하세요">
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="justify-content: flex-end; margin-top: 20px;">
                     <button class="submit-btn" onclick="searchMyBookings()" style="margin-top: 0;">조회하기</button>
                 </div>
             </div>
@@ -558,7 +636,7 @@ body {
         <div id="adminPanel" class="main-content" style="display:none;">
             <button class="logout-btn" onclick="adminLogout()">로그아웃</button>
             <h3>👨‍🏫 교수 관리 페이지</h3>
-            <p style="color:#666;margin-bottom:20px;">환영합니다, <strong id="adminName"></strong> 교수님</p>
+            <p style="color:#666;margin-bottom:20px;">환영합니다, <strong id="adminName"></strong>님</p>
 
             <div class="admin-section">
                 <h4>🚫 불가능 시간 등록</h4>
@@ -621,6 +699,16 @@ body {
             <div class="admin-section">
                 <h4>📋 날짜별 상세 조회</h4>
 
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="add-btn" onclick="downloadWeeklyCSV()">
+                    📥 이번 주 예약 목록 CSV 다운로드
+                    </button>
+
+                    <button class="add-btn" onclick="downloadAllCSV()">
+                    📥 누적 예약 목록 CSV 다운로드
+                    </button>
+                </div>
+
                 <div class="form-group">
                     <label>날짜 선택</label>
                     <input type="date" id="adminDate" onchange="loadAdminBookings()">
@@ -679,7 +767,8 @@ const adminAccounts = {
     sim: { password: "sim1234", name: "심재성" },
     simk: { password: "simk1234", name: "심관식" },
     kang: { password: "kang1234", name: "강용근" },
-    kangm: { password: "kangm1234", name: "강민아" }
+    kangm: { password: "kangm1234", name: "강민아" },
+    ipp: { password: "ipp1234", name: "행정팀" }
 };
 
 let currentAdmin = null;
@@ -737,9 +826,11 @@ async function submitBooking() {
     const studentName = document.getElementById("studentName").value.trim();
     const major = document.getElementById("major").value.trim();
     const phone = document.getElementById("phone").value.trim();
+    const consultTypes = Array.from(document.querySelectorAll('input[name="consultType"]:checked'))
+        .map(checkbox => checkbox.value);
 
-    if (!professor || !studentId || !studentName || !major || !phone) {
-        showAlert("error", "모든 정보를 입력해주세요.");
+    if (!professor || !studentId || !studentName || !major || !phone || consultTypes.length === 0) {
+        showAlert("error", "모든 정보와 상담 유형을 선택해주세요.");
         return;
     }
 
@@ -767,6 +858,7 @@ async function submitBooking() {
             studentName,
             major,
             phone,
+            consultTypes,
             date: selectedSlot.date,
             time: selectedSlot.time,
             createdAt: new Date().toISOString()
@@ -781,6 +873,10 @@ async function submitBooking() {
         document.getElementById("studentName").value = "";
         document.getElementById("major").value = "";
         document.getElementById("phone").value = "";
+
+        document.querySelectorAll('input[name="consultType"]').forEach(checkbox => {
+            checkbox.checked = false;
+        });
 
         selectedSlot = null;
         document.getElementById("submitBtn").disabled = true;
@@ -813,7 +909,8 @@ function searchMyBookings() {
             <div class="booking-item">
                 <div class="booking-details">
                     <strong>${b.professor} 교수님</strong>
-                    <span>${b.date} ${b.time} | ${b.studentName} | ${b.major}</span>
+                    <span>${b.date} ${b.time} | ${b.studentName} | ${b.major}</span><br>
+                    <span>상담 유형: ${Array.isArray(b.consultTypes) ? b.consultTypes.join(", ") : "미입력"}</span>
                 </div>
                 <button class="cancel-btn" onclick="cancelBooking('${b.id}')">취소</button>
             </div>
@@ -834,6 +931,11 @@ async function cancelBooking(id) {
 
 async function addUnavailableTime() {
     if (!currentAdmin) return;
+
+    if (currentAdmin.id === "ipp") {
+        showAdminAlert("error", "행정팀 계정은 불가능 시간을 등록할 수 없습니다.");
+        return;
+    }
 
     const date = document.getElementById("unavailableDate").value;
     const startTime = document.getElementById("unavailableStartTime").value;
@@ -877,6 +979,12 @@ function loadUnavailableList() {
     if (!currentAdmin) return;
 
     const list = document.getElementById("unavailableList");
+
+    if (currentAdmin.id === "ipp") {
+        list.innerHTML = '<p style="text-align:center;color:#999;">행정팀 계정은 불가능 시간 등록 대상이 아닙니다.</p>';
+        return;
+    }
+
     const myUnavailable = unavailableCache.filter(u => u.professor === currentAdmin.name);
 
     if (myUnavailable.length === 0) {
@@ -911,9 +1019,15 @@ function loadAdminBookings() {
     const date = document.getElementById("adminDate").value;
     if (!date) return;
 
-    const adminBookings = bookingsCache.filter(b =>
-        b.professor === currentAdmin.name && b.date === date
-    );
+    let adminBookings;
+
+    if (currentAdmin.id === "ipp") {
+        adminBookings = bookingsCache.filter(b => b.date === date);
+    } else {
+        adminBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name && b.date === date
+        );
+    }
 
     const list = document.getElementById("adminBookingsList");
 
@@ -923,15 +1037,190 @@ function loadAdminBookings() {
     }
 
     list.innerHTML = adminBookings
-        .sort((a, b) => a.time.localeCompare(b.time))
+        .sort((a, b) => {
+            const professorCompare = (a.professor || "").localeCompare(b.professor || "");
+            if (professorCompare !== 0) return professorCompare;
+            return (a.time || "").localeCompare(b.time || "");
+        })
         .map(b => `
             <div class="booking-item">
                 <div class="booking-details">
-                    <strong>${b.time}</strong>
-                    <span>${b.studentName} (${b.studentId}) | ${b.major} | ${b.phone}</span>
+                    <strong>${b.time} | ${b.professor} 교수님</strong>
+                    <span>${b.studentName} (${b.studentId}) | ${b.major} | ${b.phone}</span><br>
+                    <span>상담 유형: ${Array.isArray(b.consultTypes) ? b.consultTypes.join(", ") : "미입력"}</span>
                 </div>
             </div>
         `).join("");
+}
+
+function downloadWeeklyCSV() {
+    if (!currentAdmin) return;
+
+    const weekStart = new Date(adminWeekStart);
+    const weekEnd = new Date(adminWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const startStr = getLocalDateString(weekStart);
+    const endStr = getLocalDateString(weekEnd);
+
+    let weeklyBookings;
+
+    if (currentAdmin.id === "ipp") {
+        weeklyBookings = bookingsCache.filter(b =>
+            b.date >= startStr && b.date <= endStr
+        );
+    } else {
+        weeklyBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name &&
+            b.date >= startStr &&
+            b.date <= endStr
+        );
+    }
+
+    if (weeklyBookings.length === 0) {
+        showAdminAlert("error", "이번 주 예약 데이터가 없습니다.");
+        return;
+    }
+
+    weeklyBookings.sort((a, b) => {
+        const dateCompare = (a.date || "").localeCompare(b.date || "");
+        if (dateCompare !== 0) return dateCompare;
+
+        const timeCompare = (a.time || "").localeCompare(b.time || "");
+        if (timeCompare !== 0) return timeCompare;
+
+        return (a.professor || "").localeCompare(b.professor || "");
+    });
+
+    const headers = [
+        "교수명",
+        "날짜",
+        "시간",
+        "학번",
+        "이름",
+        "전공",
+        "연락처",
+        "상담유형",
+        "신청일시"
+    ];
+
+    const rows = weeklyBookings.map(b => [
+    b.professor || "",
+    `="${b.date || ""}"`,
+    `="${b.time || ""}"`,
+    `="${b.studentId || ""}"`,
+    b.studentName || "",
+    b.major || "",
+    `="${b.phone || ""}"`,
+    Array.isArray(b.consultTypes) ? b.consultTypes.join(" / ") : "",
+    `="${b.createdAt || ""}"`
+    ]);
+
+    const csvContent = [
+        headers,
+        ...rows
+    ].map(row =>
+        row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = `예약목록_${startStr}_${endStr}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showAdminAlert("success", "이번 주 예약 목록 CSV 파일이 다운로드되었습니다.");
+}
+
+function downloadAllCSV() {
+    if (!currentAdmin) return;
+
+    let allBookings;
+
+    if (currentAdmin.id === "ipp") {
+        allBookings = [...bookingsCache];
+    } else {
+        allBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name
+        );
+    }
+
+    if (allBookings.length === 0) {
+        showAdminAlert("error", "누적 예약 데이터가 없습니다.");
+        return;
+    }
+
+    allBookings.sort((a, b) => {
+        const dateCompare = (a.date || "").localeCompare(b.date || "");
+        if (dateCompare !== 0) return dateCompare;
+
+        const timeCompare = (a.time || "").localeCompare(b.time || "");
+        if (timeCompare !== 0) return timeCompare;
+
+        return (a.professor || "").localeCompare(b.professor || "");
+    });
+
+    const headers = [
+        "교수명",
+        "날짜",
+        "시간",
+        "학번",
+        "이름",
+        "전공",
+        "연락처",
+        "상담유형",
+        "신청일시"
+    ];
+
+    const rows = allBookings.map(b => [
+        b.professor || "",
+        `="${b.date || ""}"`,
+        `="${b.time || ""}"`,
+        `="${b.studentId || ""}"`,
+        b.studentName || "",
+        b.major || "",
+        `="${b.phone || ""}"`,
+        Array.isArray(b.consultTypes) ? b.consultTypes.join(" / ") : "",
+        `="${b.createdAt || ""}"`
+    ]);
+
+    const csvContent = [
+        headers,
+        ...rows
+    ].map(row =>
+        row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    const today = getLocalDateString(new Date());
+    a.href = url;
+    a.download = `누적예약목록_${today}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showAdminAlert("success", "누적 예약 목록 CSV 파일이 다운로드되었습니다.");
 }
 
 function initSchedule() {
@@ -1018,25 +1307,39 @@ function initAdminSchedule() {
                 cell.classList.add("unavailable");
                 cell.textContent = "휴무";
             } else {
-                const booking = bookingsCache.find(b =>
-                    b.date === dateStr &&
-                    b.time === time &&
-                    b.professor === currentAdmin.name
-                );
+                let booking;
+
+                if (currentAdmin.id === "ipp") {
+                    booking = bookingsCache.find(b =>
+                        b.date === dateStr &&
+                        b.time === time
+                    );
+                } else {
+                    booking = bookingsCache.find(b =>
+                        b.date === dateStr &&
+                        b.time === time &&
+                        b.professor === currentAdmin.name
+                    );
+                }
 
                 if (booking) {
                     cell.classList.add("booked");
                     cell.innerHTML = `
                         <div style="font-weight:600;color:#667eea;">${booking.studentName}</div>
                         <div style="font-size:10px;color:#666;">${booking.studentId}</div>
+                        <div style="font-size:10px;color:#666;">${booking.professor || ""}</div>
                     `;
                 } else {
-                    const unavailable = unavailableCache.some(u =>
-                        u.professor === currentAdmin.name &&
-                        u.date === dateStr &&
-                        Array.isArray(u.times) &&
-                        u.times.includes(time)
-                    );
+                    let unavailable = false;
+
+                    if (currentAdmin.id !== "ipp") {
+                        unavailable = unavailableCache.some(u =>
+                            u.professor === currentAdmin.name &&
+                            u.date === dateStr &&
+                            Array.isArray(u.times) &&
+                            u.times.includes(time)
+                        );
+                    }
 
                     if (unavailable) {
                         cell.classList.add("unavailable");
