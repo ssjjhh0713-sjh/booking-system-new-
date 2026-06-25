@@ -604,7 +604,7 @@ body {
                     <label>학번 입력</label>
                     <input type="text" id="searchStudentId" placeholder="학번을 입력하세요">
                 </div>
-                <div class="form-group">
+                <div class="form-group" style="justify-content: flex-end; margin-top: 20px;">
                     <button class="submit-btn" onclick="searchMyBookings()" style="margin-top: 0;">조회하기</button>
                 </div>
             </div>
@@ -636,7 +636,7 @@ body {
         <div id="adminPanel" class="main-content" style="display:none;">
             <button class="logout-btn" onclick="adminLogout()">로그아웃</button>
             <h3>👨‍🏫 교수 관리 페이지</h3>
-            <p style="color:#666;margin-bottom:20px;">환영합니다, <strong id="adminName"></strong> 교수님</p>
+            <p style="color:#666;margin-bottom:20px;">환영합니다, <strong id="adminName"></strong>님</p>
 
             <div class="admin-section">
                 <h4>🚫 불가능 시간 등록</h4>
@@ -699,6 +699,10 @@ body {
             <div class="admin-section">
                 <h4>📋 날짜별 상세 조회</h4>
 
+                <button class="add-btn" onclick="downloadWeeklyCSV()" style="margin-bottom: 15px;">
+                    📥 이번 주 예약 목록 CSV 다운로드
+                </button>
+
                 <div class="form-group">
                     <label>날짜 선택</label>
                     <input type="date" id="adminDate" onchange="loadAdminBookings()">
@@ -757,7 +761,8 @@ const adminAccounts = {
     sim: { password: "sim1234", name: "심재성" },
     simk: { password: "simk1234", name: "심관식" },
     kang: { password: "kang1234", name: "강용근" },
-    kangm: { password: "kangm1234", name: "강민아" }
+    kangm: { password: "kangm1234", name: "강민아" },
+    ipp: { password: "ipp1234", name: "행정팀" }
 };
 
 let currentAdmin = null;
@@ -921,6 +926,11 @@ async function cancelBooking(id) {
 async function addUnavailableTime() {
     if (!currentAdmin) return;
 
+    if (currentAdmin.id === "ipp") {
+        showAdminAlert("error", "행정팀 계정은 불가능 시간을 등록할 수 없습니다.");
+        return;
+    }
+
     const date = document.getElementById("unavailableDate").value;
     const startTime = document.getElementById("unavailableStartTime").value;
     const endTime = document.getElementById("unavailableEndTime").value;
@@ -963,6 +973,12 @@ function loadUnavailableList() {
     if (!currentAdmin) return;
 
     const list = document.getElementById("unavailableList");
+
+    if (currentAdmin.id === "ipp") {
+        list.innerHTML = '<p style="text-align:center;color:#999;">행정팀 계정은 불가능 시간 등록 대상이 아닙니다.</p>';
+        return;
+    }
+
     const myUnavailable = unavailableCache.filter(u => u.professor === currentAdmin.name);
 
     if (myUnavailable.length === 0) {
@@ -997,9 +1013,15 @@ function loadAdminBookings() {
     const date = document.getElementById("adminDate").value;
     if (!date) return;
 
-    const adminBookings = bookingsCache.filter(b =>
-        b.professor === currentAdmin.name && b.date === date
-    );
+    let adminBookings;
+
+    if (currentAdmin.id === "ipp") {
+        adminBookings = bookingsCache.filter(b => b.date === date);
+    } else {
+        adminBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name && b.date === date
+        );
+    }
 
     const list = document.getElementById("adminBookingsList");
 
@@ -1009,16 +1031,110 @@ function loadAdminBookings() {
     }
 
     list.innerHTML = adminBookings
-        .sort((a, b) => a.time.localeCompare(b.time))
+        .sort((a, b) => {
+            const professorCompare = (a.professor || "").localeCompare(b.professor || "");
+            if (professorCompare !== 0) return professorCompare;
+            return (a.time || "").localeCompare(b.time || "");
+        })
         .map(b => `
             <div class="booking-item">
                 <div class="booking-details">
-                    <strong>${b.time}</strong>
+                    <strong>${b.time} | ${b.professor} 교수님</strong>
                     <span>${b.studentName} (${b.studentId}) | ${b.major} | ${b.phone}</span><br>
                     <span>상담 유형: ${Array.isArray(b.consultTypes) ? b.consultTypes.join(", ") : "미입력"}</span>
                 </div>
             </div>
         `).join("");
+}
+
+function downloadWeeklyCSV() {
+    if (!currentAdmin) return;
+
+    const weekStart = new Date(adminWeekStart);
+    const weekEnd = new Date(adminWeekStart);
+    weekEnd.setDate(weekEnd.getDate() + 6);
+
+    const startStr = getLocalDateString(weekStart);
+    const endStr = getLocalDateString(weekEnd);
+
+    let weeklyBookings;
+
+    if (currentAdmin.id === "ipp") {
+        weeklyBookings = bookingsCache.filter(b =>
+            b.date >= startStr && b.date <= endStr
+        );
+    } else {
+        weeklyBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name &&
+            b.date >= startStr &&
+            b.date <= endStr
+        );
+    }
+
+    if (weeklyBookings.length === 0) {
+        showAdminAlert("error", "이번 주 예약 데이터가 없습니다.");
+        return;
+    }
+
+    weeklyBookings.sort((a, b) => {
+        const dateCompare = (a.date || "").localeCompare(b.date || "");
+        if (dateCompare !== 0) return dateCompare;
+
+        const timeCompare = (a.time || "").localeCompare(b.time || "");
+        if (timeCompare !== 0) return timeCompare;
+
+        return (a.professor || "").localeCompare(b.professor || "");
+    });
+
+    const headers = [
+        "교수명",
+        "날짜",
+        "시간",
+        "학번",
+        "이름",
+        "전공",
+        "연락처",
+        "상담유형",
+        "신청일시"
+    ];
+
+    const rows = weeklyBookings.map(b => [
+    b.professor || "",
+    `="${b.date || ""}"`,
+    `="${b.time || ""}"`,
+    `="${b.studentId || ""}"`,
+    b.studentName || "",
+    b.major || "",
+    `="${b.phone || ""}"`,
+    Array.isArray(b.consultTypes) ? b.consultTypes.join(" / ") : "",
+    `="${b.createdAt || ""}"`
+    ]);
+
+    const csvContent = [
+        headers,
+        ...rows
+    ].map(row =>
+        row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    a.href = url;
+    a.download = `예약목록_${startStr}_${endStr}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showAdminAlert("success", "이번 주 예약 목록 CSV 파일이 다운로드되었습니다.");
 }
 
 function initSchedule() {
@@ -1105,25 +1221,39 @@ function initAdminSchedule() {
                 cell.classList.add("unavailable");
                 cell.textContent = "휴무";
             } else {
-                const booking = bookingsCache.find(b =>
-                    b.date === dateStr &&
-                    b.time === time &&
-                    b.professor === currentAdmin.name
-                );
+                let booking;
+
+                if (currentAdmin.id === "ipp") {
+                    booking = bookingsCache.find(b =>
+                        b.date === dateStr &&
+                        b.time === time
+                    );
+                } else {
+                    booking = bookingsCache.find(b =>
+                        b.date === dateStr &&
+                        b.time === time &&
+                        b.professor === currentAdmin.name
+                    );
+                }
 
                 if (booking) {
                     cell.classList.add("booked");
                     cell.innerHTML = `
                         <div style="font-weight:600;color:#667eea;">${booking.studentName}</div>
                         <div style="font-size:10px;color:#666;">${booking.studentId}</div>
+                        <div style="font-size:10px;color:#666;">${booking.professor || ""}</div>
                     `;
                 } else {
-                    const unavailable = unavailableCache.some(u =>
-                        u.professor === currentAdmin.name &&
-                        u.date === dateStr &&
-                        Array.isArray(u.times) &&
-                        u.times.includes(time)
-                    );
+                    let unavailable = false;
+
+                    if (currentAdmin.id !== "ipp") {
+                        unavailable = unavailableCache.some(u =>
+                            u.professor === currentAdmin.name &&
+                            u.date === dateStr &&
+                            Array.isArray(u.times) &&
+                            u.times.includes(time)
+                        );
+                    }
 
                     if (unavailable) {
                         cell.classList.add("unavailable");
