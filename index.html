@@ -699,9 +699,15 @@ body {
             <div class="admin-section">
                 <h4>📋 날짜별 상세 조회</h4>
 
-                <button class="add-btn" onclick="downloadWeeklyCSV()" style="margin-bottom: 15px;">
+                <div style="display: flex; gap: 10px; margin-bottom: 15px; flex-wrap: wrap;">
+                    <button class="add-btn" onclick="downloadWeeklyCSV()">
                     📥 이번 주 예약 목록 CSV 다운로드
-                </button>
+                    </button>
+
+                    <button class="add-btn" onclick="downloadAllCSV()">
+                    📥 누적 예약 목록 CSV 다운로드
+                    </button>
+                </div>
 
                 <div class="form-group">
                     <label>날짜 선택</label>
@@ -1135,6 +1141,86 @@ function downloadWeeklyCSV() {
     URL.revokeObjectURL(url);
 
     showAdminAlert("success", "이번 주 예약 목록 CSV 파일이 다운로드되었습니다.");
+}
+
+function downloadAllCSV() {
+    if (!currentAdmin) return;
+
+    let allBookings;
+
+    if (currentAdmin.id === "ipp") {
+        allBookings = [...bookingsCache];
+    } else {
+        allBookings = bookingsCache.filter(b =>
+            b.professor === currentAdmin.name
+        );
+    }
+
+    if (allBookings.length === 0) {
+        showAdminAlert("error", "누적 예약 데이터가 없습니다.");
+        return;
+    }
+
+    allBookings.sort((a, b) => {
+        const dateCompare = (a.date || "").localeCompare(b.date || "");
+        if (dateCompare !== 0) return dateCompare;
+
+        const timeCompare = (a.time || "").localeCompare(b.time || "");
+        if (timeCompare !== 0) return timeCompare;
+
+        return (a.professor || "").localeCompare(b.professor || "");
+    });
+
+    const headers = [
+        "교수명",
+        "날짜",
+        "시간",
+        "학번",
+        "이름",
+        "전공",
+        "연락처",
+        "상담유형",
+        "신청일시"
+    ];
+
+    const rows = allBookings.map(b => [
+        b.professor || "",
+        `="${b.date || ""}"`,
+        `="${b.time || ""}"`,
+        `="${b.studentId || ""}"`,
+        b.studentName || "",
+        b.major || "",
+        `="${b.phone || ""}"`,
+        Array.isArray(b.consultTypes) ? b.consultTypes.join(" / ") : "",
+        `="${b.createdAt || ""}"`
+    ]);
+
+    const csvContent = [
+        headers,
+        ...rows
+    ].map(row =>
+        row.map(value => `"${String(value).replace(/"/g, '""')}"`).join(",")
+    ).join("\n");
+
+    const bom = "\uFEFF";
+    const blob = new Blob([bom + csvContent], {
+        type: "text/csv;charset=utf-8;"
+    });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+
+    const today = getLocalDateString(new Date());
+    a.href = url;
+    a.download = `누적예약목록_${today}.csv`;
+
+    document.body.appendChild(a);
+    a.click();
+
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    showAdminAlert("success", "누적 예약 목록 CSV 파일이 다운로드되었습니다.");
 }
 
 function initSchedule() {
